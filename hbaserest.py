@@ -118,12 +118,11 @@ class HBaseRest:
         # }]
         body = {"Row": [
             {
-                "key": base64.b64encode(row_key),
+                "key": base64.b64encode(row_key.encode('utf-8')).decode(),
                 "Cell": [
                     cell.json
                 ]
             }
-
         ]}
         return successful(requests.post(self.baseUrl + table_name + "/row",
                                         headers={"Accept": "application/json", "Content-Type": "application/json"}
@@ -241,7 +240,8 @@ class HBaseRest:
         :return:
         """
         scanner = '<Scanner startRow="{}" endRow="{}" batch="{}"></Scanner>'. \
-            format(base64.b64encode(start_row_key), base64.b64encode(end_row_key), max_number)
+            format(base64.b64encode(start_row_key.encode('utf-8')).decode(),
+                   base64.b64encode(end_row_key.encode('utf-8')), max_number.decode())
         return self.get_rows_by_scanner(self.baseUrl, table_name, scanner)
 
     def get_rows_by_prefix_filter(self, table_name, prefix_filter, max_number):
@@ -268,17 +268,19 @@ def successful(request):
 def standard(json_object):
     """
     将含有base64编码的json数据解码输出
-    :param json_object:{u'Row': [{u'Cell': [{u'column': u'ZDpjb2x1bW4x', u'timestamp': 1518609441465, u'$': u'MDE='}], u'key': u'cm93MA=='}]}
-    :return: json_object:{u'Row': [{u'Cell': [{u'column': 'd:column1', u'timestamp': 1518609441465, u'$': '01'}], u'key': 'row0'}]}
+    :param json_object:
+    :return: json_object:
     """
     if json_object is not None:
         row_list = json_object['Row']
         for row in row_list:
-            row['key'] = base64.b64decode(row['key'])
+            row['key'] = base64.b64decode(row['key']).decode(),
+            # 第一次赋值后row['key']竟然是一个元祖,python2就没有这个问题,不得不吐槽一下python3
+            row['key'] = row['key'][0]
             cell_list = row['Cell']
             for cell in cell_list:
-                cell['column'] = base64.b64decode(cell['column'])
-                cell['$'] = base64.b64decode(cell['$'])
+                cell['column'] = base64.b64decode(cell['column']).decode()
+                cell['$'] = base64.b64decode(cell['$']).decode()
         return json_object
     else:
         return None
@@ -287,8 +289,8 @@ def standard(json_object):
 class HCell:
     def __init__(self, family_name, label_name, value):
         self.json = {
-            "column": base64.b64encode(family_name + ":" + label_name),
-            "$": base64.b64encode(str(value))
+            "column": base64.b64encode((family_name + ":" + label_name).encode('utf-8')).decode(),
+            "$": base64.b64encode(str(value).encode('utf-8')).decode()
         }
 
 
@@ -298,7 +300,7 @@ class HRow:
         for cell in cells:
             json_list.append(cell.json)
         self.json = {
-            "key": base64.b64encode(row_key),
+            "key": base64.b64encode(row_key.encode('utf-8')).decode(),
             "Cell": json_list
         }
 
@@ -457,7 +459,7 @@ if __name__ == '__main__':
     # 查找一个单元格数据,只有最后一个版本
     print(standard(rest.get_cell("test", "row1", "family1", "label1")))
     # 查找一个单元格数据,有多个版本
-    print(standard(rest.get_multi_version_cell("test", "row1", "family3", "label1", 3)))
+    print(standard(rest.get_multi_version_cell("test", "row3", "family3", "label1", 3)))
     # 查找一行数据,只有最后一个版本
     print(standard(rest.get_row("test", "row2")))
     # 查找一行数据,有多个版本
