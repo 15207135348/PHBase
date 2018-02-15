@@ -164,8 +164,12 @@ class HBaseRest:
         :param label:
         :return:
         """
-        return requests.get(self.baseUrl + table_name + "/" + row_key + "/" + column + ":" + label,
-                            headers={"Accept": "application/json"}).json()
+        response = requests.get(self.baseUrl + table_name + "/" + row_key + "/" + column + ":" + label,
+                                headers={"Accept": "application/json"})
+        if successful(response):
+            return response.json()
+        else:
+            return None
 
     def get_multi_version_cell(self, table_name, row_key, column, label, v):
         """
@@ -177,8 +181,12 @@ class HBaseRest:
         :param v: 获得一列中前v个版本的数据
         :return:
         """
-        return requests.get(self.baseUrl + table_name + "/" + row_key + "/" + column + ":" + label + "?v=" + str(v),
-                            headers={"Accept": "application/json"}).json()
+        response = requests.get(self.baseUrl + table_name + "/" + row_key + "/" + column + ":" + label + "?v=" + str(v),
+                                headers={"Accept": "application/json"})
+        if successful(response):
+            return response.json()
+        else:
+            return None
 
     def get_row(self, table_name, row_key):
         """
@@ -187,8 +195,12 @@ class HBaseRest:
         :param row_key:
         :return:
         """
-        return requests.get(self.baseUrl + table_name + "/" + row_key,
-                            headers={"Accept": "application/json"}).json()
+        response = requests.get(self.baseUrl + table_name + "/" + row_key,
+                                headers={"Accept": "application/json"})
+        if successful(response):
+            return response.json()
+        else:
+            return None
 
     def get_multi_version_row(self, table_name, row_key, v):
         """
@@ -198,19 +210,26 @@ class HBaseRest:
         :param v:
         :return:
         """
-        return requests.get(self.baseUrl + table_name + "/" + row_key + "?v=" + str(v),
-                            headers={"Accept": "application/json"}).json()
+        response = requests.get(self.baseUrl + table_name + "/" + row_key + "?v=" + str(v),
+                                headers={"Accept": "application/json"})
+        if successful(response):
+            return response.json()
+        else:
+            return None
 
     @staticmethod
     def get_rows_by_scanner(base_url, table_name, scanner):
-        request = requests.put(base_url + table_name + "/scanner",
-                               headers={"Accept": "application/json", "Content-Type": "text/xml"}
-                               , data=scanner)
-        if successful(request):
-            url = request.headers.get("Location")
+        response = requests.put(base_url + table_name + "/scanner",
+                                headers={"Accept": "application/json", "Content-Type": "text/xml"}
+                                , data=scanner)
+        if successful(response):
+            url = response.headers.get("Location")
             response = requests.get(url, headers={"Accept": "application/json"})
             requests.delete(url)
-            return response.json()
+            if successful(response):
+                return response.json()
+            else:
+                return None
 
     def get_rows_by_rang_filter(self, table_name, start_row_key, end_row_key, max_number):
         """
@@ -252,14 +271,17 @@ def standard(json_object):
     :param json_object:{u'Row': [{u'Cell': [{u'column': u'ZDpjb2x1bW4x', u'timestamp': 1518609441465, u'$': u'MDE='}], u'key': u'cm93MA=='}]}
     :return: json_object:{u'Row': [{u'Cell': [{u'column': 'd:column1', u'timestamp': 1518609441465, u'$': '01'}], u'key': 'row0'}]}
     """
-    row_list = json_object['Row']
-    for row in row_list:
-        row['key'] = base64.b64decode(row['key'])
-        cell_list = row['Cell']
-        for cell in cell_list:
-            cell['column'] = base64.b64decode(cell['column'])
-            cell['$'] = base64.b64decode(cell['$'])
-    return json_object
+    if json_object is not None:
+        row_list = json_object['Row']
+        for row in row_list:
+            row['key'] = base64.b64decode(row['key'])
+            cell_list = row['Cell']
+            for cell in cell_list:
+                cell['column'] = base64.b64decode(cell['column'])
+                cell['$'] = base64.b64decode(cell['$'])
+        return json_object
+    else:
+        return None
 
 
 class HCell:
@@ -386,6 +408,7 @@ class HColumnSchema:
         self.schema["IN_MEMORY"] = ["true", "false"][index]
 
 
+# test
 if __name__ == '__main__':
     rest = HBaseRest("http://localhost:6077")
     # 列出所有表名
